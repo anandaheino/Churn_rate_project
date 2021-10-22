@@ -16,9 +16,16 @@ class PrepareDataset:
         - df_input_model: pd.DataFrame containing the columns for input in the classification model.
         - df_predict_model: pd.DataFrame containing the X columns for prediction using the ranking model."""
 
-def __init__(self, path: str, dataset_predict = False, model_type: str = 'churn'):
-        self.path = path
-        self.dataset_predict = dataset_predict
-        self.model_type = model_type
+    def __init__(self, path: str, dataset_predict = False, model_type: str = 'churn'):
+            self.path = path
+            self.dataset_predict = dataset_predict
+            self.model_type = model_type
 
-        
+    
+    def _load_dataframe(self):
+        """Loads a DataFrame opening from the path passed when instantiating the class."""
+        # %% Carregando o csv no DataFrame
+        df = pd.read_csv(self.path, sep=';', index_col=False, low_memory=False)
+        self.df = df
+        return self.df
+
