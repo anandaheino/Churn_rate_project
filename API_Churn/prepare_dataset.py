@@ -24,8 +24,44 @@ class PrepareDataset:
     
     def _load_dataframe(self):
         """Loads a DataFrame opening from the path passed when instantiating the class."""
-        # %% Carregando o csv no DataFrame
         df = pd.read_csv(self.path, sep=';', index_col=False, low_memory=False)
         self.df = df
         return self.df
+
+    def _split_df_customer_type(self):
+        """Receives the initial DataFrame `df`, splits the clients according to:
+        1. TYPE_BILLING: Commodities customers only
+        2. Positive GROSS MARGIN (disregarding null and negative purchases)
+        3. TYPE_HARVEST defines the purchase profiles, being customers who buy:
+                - Only in winter
+                - Only in summer
+                - In all vintages (Full-year)
+        Returns:
+            customers_fullyear, customers_winter, customers_summer: lists containing the customers of each purchase profile.
+            """
+        df = self.df
+        # %% Split DF by client type, filtering by COMMODITIES and TYPE_HARVEST
+        customers_summer = list(
+            df[(df['TYPE_HARVEST'] == 'SUMMER') & (df['GROSS_MARGIN'] > 0) & (df['TYPE_BILLING'] == 'COMMODITIES')][
+                'COD_CLIENTE'].unique())
+        customers_winter = list(
+            df[(df['TYPE_HARVEST'] == 'INVERNO') & (df['GROSS_MARGIN'] > 0) & (df['TYPE_BILLING'] == 'COMMODITIES')][
+                'COD_CLIENTE'].unique())
+        customers_fullyear = []
+        for v in customers_summer:
+            for i in customers_winter:
+                if i == v:
+                    customers_fullyear.append(i)
+        ### Removing fullyear customers from winter and summer
+        for n in customers_fullyear:
+            for v in customers_summer:
+                if v == n:
+                    customers_summer.remove(v)
+            for i in customers_winter:
+                if i == n:
+                    customers_winter.remove(i)
+        self.customers_fullyear, self.customers_winter, self.customers_summer = customers_fullyear, customers_winter, customers_summer
+        return self.customers_fullyear, self.customers_winter, self.customers_summer
+
+
 
