@@ -236,3 +236,33 @@ def _create_df_commodities(self):
         self.df_fullyear = df_fullyear.set_index('DATE_HARVEST').drop('COD_HARVEST', axis=1)
 
         return self.df_winter, self.df_summer, self.df_fullyear
+
+
+    def add_churn_recur_values(self, df_full):
+            """Receives a DataFrame with customer purchases grouped by harvest period and
+            checks if the customer stayed at least two harvest without buying with the company.
+            It will be considered churn when, after the first purchase, there is more than 2 
+            zeros in a row. On the other hand, if the customer with positive churn starts to buy
+            again at the company, than we have positive recurency."""
+
+            df_full['churn'] = 0
+            for i in range(len(df_full)):
+                for c in range(len(df_full.values[0]) - 1):  # without the last column: churn
+                    if df_full.values[i][c] != 0:             # does not count until the client starts to buy
+                        for buy in range(c, c + len(df_full.values[i][c:-1]) - 1):  # first to last purchase
+                            if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0):
+                                df_full.iloc[i, -1] = 1
+                                break  # when the algorithm finds 2 following zeros
+                        break
+
+            df_full['recur'] = 0
+            for i in range(len(df_full)):
+                if (df_full['churn'][i] == 1):
+                    for c in range(len(df_full.values[0]) - 2): 
+                        if df_full.values[i][c] != 0:
+                            for buy in range(c, c + len(df_full.values[i][c:-2]) - 2):  
+                                if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0 and df_full.values[i][buy + 2] != 0):
+                                    df_full.iloc[i, -1] = 1
+                                    break
+                            break
+            return df_full
