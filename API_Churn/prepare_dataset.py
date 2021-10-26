@@ -17,11 +17,35 @@ class PrepareDataset:
         - df_predict_model: pd.DataFrame containing the X columns for prediction using the ranking model."""
 
     def __init__(self, path: str, dataset_predict = False, model_type: str = 'churn'):
-            self.path = path
-            self.dataset_predict = dataset_predict
-            self.model_type = model_type
+        self.path = path
+        self.dataset_predict = dataset_predict
+        self.model_type = model_type
 
+        # all methods below are called when instantiating the class
+        ### - when the class is called to prepare the dataset to train the model:
+        if self.dataset_predict == False:
+            self._load_dataframe()
+            self._split_df_customer_type()
+            self._create_df_commodities()
+            self._get_dummies_commodities()
+            self._create_df_stats()
+            self._split_df_stat_by_customer()
+            self._add_churn_recur_timeoff()
+            self._create_df_churn_complete()
+            self._create_df_input_model()
+        
+        ### - when the class is called to prepare the dataset to predictions:
+        elif self.dataset_predict == True:
+            self._load_dataframe()
+            self._create_df_commodities()
+            self._get_dummies_commodities()
+            self._create_df_stats()
+            self._create_df_predict_model()
+
+        else:
+            print('Invalid option `None` to `dataset_predict`. Please set as `True` or `False`.')
     
+
     def _load_dataframe(self):
         """Loads a DataFrame opening from the path passed when instantiating the class."""
         df = pd.read_csv(self.path, sep=';', index_col=False, low_memory=False)
@@ -64,7 +88,7 @@ class PrepareDataset:
         return self.customers_fullyear, self.customers_winter, self.customers_summer
 
 
-def _create_df_commodities(self):
+    def _create_df_commodities(self):
         """Receives df and removes irrelevant columns, null data and filters the data according to TYPE_BILLING 
         equals to commodities, and only positive GROSS_MARGIN values.
         Returns:
@@ -73,14 +97,14 @@ def _create_df_commodities(self):
         df = self.df
         df = df.fillna(value=0)
         df.dropna(axis=0, inplace=True)
-       
+        
         # Filtering data by billing type and positive gross margin
         df_commodities = df[(df['TYPE_BILLING'] == 'COMODITIES') & (df['GROSS_MARGIN'] > 0)]
         df_commodities = df_commodities.drop(['TYPE_BILLING'], axis=1)
         # Reorganizando as colunas
         self.df_commodities = df_commodities[['COD_CUSTOMER', 'DATE_MOV', 'COD_HARVEST', 'TYPE_HARVEST', 'MIX_GROUP', 'TYPE_CONTRACT',
-                                      'TYPE_MOV', 'REGION', 'QUANTITY', 'VALUE',
-                                      'TRADE_DESCRIPTION', 'EVENT_DESCRIPTION', 'GROSS_MARGIN']]
+                                        'TYPE_MOV', 'REGION', 'QUANTITY', 'VALUE',
+                                        'TRADE_DESCRIPTION', 'EVENT_DESCRIPTION', 'GROSS_MARGIN']]
         return self.df_commodities
 
 
@@ -151,27 +175,27 @@ def _create_df_commodities(self):
 
 
     def convert_harvest_to_date(self, df_complete: pd.DataFrame):
-            """Receives a DataFrame containing the column COD_HARVEST and adds a DATE_HARVEST column according to harvest.
-            This is a helper method of other methods that are called when instantiating the class."""
+        """Receives a DataFrame containing the column COD_HARVEST and adds a DATE_HARVEST column according to harvest.
+        This is a helper method of other methods that are called when instantiating the class."""
 
-            # unique harvest codes
-            Codigo_harvest = df_complete['COD_HARVEST'].unique()
-            Codigo_harvest = list(Codigo_harvest)  
-            Codigo_harvest = sorted(Codigo_harvest)  
-            date_harvest_dict = {i: i.replace('SF-', '').split('/') for i in Codigo_harvest}
-   
-            date_harvest = {}
-            for k, j in (date_harvest_dict.items()):
-                if j[0] == j[1]:  # winter harvest 
-                    date_harvest[k] = (f'20{j[1]}-07-01')
+        # unique harvest codes
+        Codigo_harvest = df_complete['COD_HARVEST'].unique()
+        Codigo_harvest = list(Codigo_harvest)  
+        Codigo_harvest = sorted(Codigo_harvest)  
+        date_harvest_dict = {i: i.replace('SF-', '').split('/') for i in Codigo_harvest}
 
-                elif j[0] != j[1]:  # summer harvest
-                    date_harvest[k] = (f'20{j[1]}-01-01')
+        date_harvest = {}
+        for k, j in (date_harvest_dict.items()):
+            if j[0] == j[1]:  # winter harvest 
+                date_harvest[k] = (f'20{j[1]}-07-01')
 
-            # adds DATE_HARVEST using the date_harvest_dict with map function
-            df_complete['DATE_HARVEST'] = (df_complete['COD_HARVEST'].map(date_harvest))
+            elif j[0] != j[1]:  # summer harvest
+                date_harvest[k] = (f'20{j[1]}-01-01')
 
-            return df_complete
+        # adds DATE_HARVEST using the date_harvest_dict with map function
+        df_complete['DATE_HARVEST'] = (df_complete['COD_HARVEST'].map(date_harvest))
+
+        return df_complete
 
     def _split_df_stat_by_customer(self):
         """Uses the columns of the df_stat_commodities crops according to the current year.
@@ -239,34 +263,34 @@ def _create_df_commodities(self):
 
 
     def add_churn_recur_values(self, df_full):
-            """Receives a DataFrame with customer purchases grouped by harvest period and
-            checks if the customer stayed at least two harvest without buying with the company.
-            It will be considered churn when, after the first purchase, there is more than 2 
-            zeros in a row. On the other hand, if the customer with positive churn starts to buy
-            again at the company, than we have positive recurrence.
-            This is a helper method of other methods that are called when instantiating the class."""
+        """Receives a DataFrame with customer purchases grouped by harvest period and
+        checks if the customer stayed at least two harvest without buying with the company.
+        It will be considered churn when, after the first purchase, there is more than 2 
+        zeros in a row. On the other hand, if the customer with positive churn starts to buy
+        again at the company, than we have positive recurrence.
+        This is a helper method of other methods that are called when instantiating the class."""
 
-            df_full['churn'] = 0
-            for i in range(len(df_full)):
-                for c in range(len(df_full.values[0]) - 1):  # without the last column: churn
-                    if df_full.values[i][c] != 0:             # does not count until the client starts to buy
-                        for buy in range(c, c + len(df_full.values[i][c:-1]) - 1):  # first to last purchase
-                            if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0):
+        df_full['churn'] = 0
+        for i in range(len(df_full)):
+            for c in range(len(df_full.values[0]) - 1):  # without the last column: churn
+                if df_full.values[i][c] != 0:             # does not count until the client starts to buy
+                    for buy in range(c, c + len(df_full.values[i][c:-1]) - 1):  # first to last purchase
+                        if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0):
+                            df_full.iloc[i, -1] = 1
+                            break  # when the algorithm finds 2 following zeros
+                    break
+
+        df_full['recur'] = 0
+        for i in range(len(df_full)):
+            if (df_full['churn'][i] == 1):
+                for c in range(len(df_full.values[0]) - 2): 
+                    if df_full.values[i][c] != 0:
+                        for buy in range(c, c + len(df_full.values[i][c:-2]) - 2):  
+                            if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0 and df_full.values[i][buy + 2] != 0):
                                 df_full.iloc[i, -1] = 1
-                                break  # when the algorithm finds 2 following zeros
+                                break
                         break
-
-            df_full['recur'] = 0
-            for i in range(len(df_full)):
-                if (df_full['churn'][i] == 1):
-                    for c in range(len(df_full.values[0]) - 2): 
-                        if df_full.values[i][c] != 0:
-                            for buy in range(c, c + len(df_full.values[i][c:-2]) - 2):  
-                                if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0 and df_full.values[i][buy + 2] != 0):
-                                    df_full.iloc[i, -1] = 1
-                                    break
-                            break
-            return df_full
+        return df_full
 
 
     def count_time_off(self, df_full: pd.DataFrame):
