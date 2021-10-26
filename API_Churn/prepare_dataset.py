@@ -79,9 +79,10 @@ def _create_df_commodities(self):
         df_commodities = df_commodities.drop(['TYPE_BILLING'], axis=1)
         # Reorganizando as colunas
         self.df_commodities = df_commodities[['COD_CUSTOMER', 'DATE_MOV', 'COD_HARVEST', 'TYPE_HARVEST', 'MIX_GROUP', 'TYPE_CONTRACT',
-                                      'TYPE_MOV', 'REGION', 'AMOUNT', 'VALUE',
+                                      'TYPE_MOV', 'REGION', 'QUANTITY', 'VALUE',
                                       'TRADE_DESCRIPTION', 'EVENT_DESCRIPTION', 'GROSS_MARGIN']]
         return self.df_commodities
+
 
     def _get_dummies_commodities(self):
         """Receives df_commodities and creates a column for each categorical data (dummies) with a numeric data that represents
@@ -101,7 +102,7 @@ def _create_df_commodities(self):
 
         dumies_t = [df_commodities, self.dummies_mix, self.dummies_cod_harvest, self.dummies_type_safra,
                     self.dummies_reg,self.dummies_type_cont, self.dummies_type_movto, self.dummies_even_com]
-                    
+
         self.df_ins_dumm = reduce(lambda left, right: pd.merge(left,
                                                                right,
                                                                on='index'), dumies_t)
@@ -112,3 +113,28 @@ def _create_df_commodities(self):
             self.df_ins_dumm.drop(['0_x','0.0_y'], axis=1, inplace=True)
 
         return self.df_ins_dumm, self.dummies_cod_harvest
+
+
+    def _create_df_stats(self):
+        """Create the DataFrame with statistical data from df_ins_dumm and dummies_cod_harvest. The value of
+        GROSS MARGIN is applied to the harvest columns, witch were grouped ​with all purchases within that period.
+        QUANTITY is applied to new columns created for each product of MIX_GROUP.
+        Data are grouped and summed by COD_CUSTOMER.
+        Returns:
+            df_stat_commodities: DataFrame with informative statistical data on purchases by season,
+            product, type of contract and event of each customer. """
+        # apllying 'GROSS_MARGIN' to the 'COD_HARVEST' dummies
+        df_value_harvest = self.df_ins_dumm[self.dummies_cod_harvest.columns.values].apply(
+                                                                        lambda x: x * self.df_ins_dumm['GROSS_MARGIN'])
+        self.df_ins_dumm[self.dummies_cod_harvest.columns.values] = df_value_harvest
+
+        # applying column 'QUANTITY' to the 'MIX_GROUP' dummies
+        df_value_mix = self.df_ins_dumm[self.dummies_mix.columns.values].apply(
+            lambda x: x * self.df_ins_dumm['QUANTITY'])
+        self.df_ins_dumm[self.dummies_mix.columns.values] = df_value_mix
+
+        # Grouping by 'COD_CUSTOMER'
+        df_ins_sum = self.df_ins_dumm.groupby('COD_CUSTOMER').sum()
+        df_ins_sum.drop('index', axis=1, inplace=True)
+        self.df_stat_commodities = df_ins_sum.round(2).copy()
+        return self.df_stat_commodities
