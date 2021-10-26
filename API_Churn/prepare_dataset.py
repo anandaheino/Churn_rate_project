@@ -95,12 +95,12 @@ def _create_df_commodities(self):
         self.dummies_reg = pd.get_dummies(df_commodities['REGION']).reset_index()
         self.dummies_type_movto = pd.get_dummies(df_commodities['TYPE_MOV']).reset_index()
         self.dummies_type_cont = pd.get_dummies(df_commodities['TYPE_CONTRACT']).reset_index()
-        self.dummies_type_safra = pd.get_dummies(df_commodities['TYPE_HARVEST']).reset_index()
+        self.dummies_type_harvest = pd.get_dummies(df_commodities['TYPE_HARVEST']).reset_index()
         self.dummies_cod_harvest = pd.get_dummies(df_commodities['COD_HARVEST']).reset_index()
         self.dummies_even_com = pd.get_dummies(df_commodities['EVENT_DESCRIPTION']).reset_index()
         df_commodities = df_commodities.reset_index()
 
-        dumies_t = [df_commodities, self.dummies_mix, self.dummies_cod_harvest, self.dummies_type_safra,
+        dumies_t = [df_commodities, self.dummies_mix, self.dummies_cod_harvest, self.dummies_type_harvest,
                     self.dummies_reg,self.dummies_type_cont, self.dummies_type_movto, self.dummies_even_com]
 
         self.df_ins_dumm = reduce(lambda left, right: pd.merge(left,
@@ -138,3 +138,37 @@ def _create_df_commodities(self):
         df_ins_sum.drop('index', axis=1, inplace=True)
         self.df_stat_commodities = df_ins_sum.round(2).copy()
         return self.df_stat_commodities
+
+
+    def filter_df_per_customer(self, clients_list: list(), df_est: pd.DataFrame):
+        """Receives a DataFrame containing the column COD_CUSTOMER and filters
+            according to the values ​​within clients_list.
+        This is a helper method of other methods that are called when instantiating the class."""
+
+        filtered = df_est['COD_CUSTOMER'].isin(clients_list)
+        df_customer = df_est[filtered]
+        return df_customer
+
+
+    def convert_harvest_to_date(self, df_complete: pd.DataFrame):
+            """Receives a DataFrame containing the column COD_HARVEST and adds a DATE_HARVEST column according to harvest.
+            This is a helper method of other methods that are called when instantiating the class."""
+
+            # unique harvest codes
+            Codigo_harvest = df_complete['COD_HARVEST'].unique()
+            Codigo_harvest = list(Codigo_harvest)  
+            Codigo_harvest = sorted(Codigo_harvest)  
+            date_harvest_dict = {i: i.replace('SF-', '').split('/') for i in Codigo_harvest}
+   
+            date_harvest = {}
+            for k, j in (date_harvest_dict.items()):
+                if j[0] == j[1]:  # winter harvest 
+                    date_harvest[k] = (f'20{j[1]}-07-01')
+
+                elif j[0] != j[1]:  # summer harvest
+                    date_harvest[k] = (f'20{j[1]}-01-01')
+
+            # adds DATE_HARVEST using the date_harvest_dict with map function
+            df_complete['DATE_HARVEST'] = (df_complete['COD_HARVEST'].map(date_harvest))
+
+            return df_complete
