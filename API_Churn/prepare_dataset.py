@@ -390,7 +390,7 @@ def _create_df_commodities(self):
             df_concat.loc[df_concat[f'{i}'] != 0, f'{i}'] = 1
         df_concat['Event_participation'] = df_concat[cols_event_description][:].sum(axis=1)
                    
-        # se houver, remove colunas com valores negativos
+        # remove negative values
         for i in df_concat.columns:
             try:
                 df_concat[[i]] = pd.to_numeric(df_concat[[i]], errors='ignore', downcast='float')
@@ -422,3 +422,109 @@ def _create_df_commodities(self):
                                               'Event_participation', 'recorr']]
 
         return self.df_input_model
+
+
+    def _create_df_predict_model(self):
+        """Receives the df_stat_commodities from purchases of a specific client, checks if the feature 
+        columns exist in the DataFrame.
+        The harvest columns are chosen according to the current year and month. 
+        This way the model always chooses the most up-to-date harvests.
+        Returns:
+            df_predict_model: DataFrame"""
+
+        df_concat = self.df_stat_commodities
+        current_year = time.strftime('%Y')[-2:]  # ano: 2021 pega apenas o final, sendo "21"
+        current_month = time.strftime('%m')
+
+        if 4 <= int(current_month) and int(current_month) < 10:
+            cols = ['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                'SOIL FERTILIZERS', 'SEEDS', f'SF-{int(current_year)-6}/{int(current_year)-5}',
+                f'SF-{int(current_year)-5}/{int(current_year)-5}',f'SF-{int(current_year)-5}/{int(current_year)-4}',  
+                f'SF-{int(current_year)-4}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-3}',
+                f'SF-{int(current_year)-3}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-2}',
+                f'SF-{int(current_year)-2}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-1}',
+                f'SF-{int(current_year)-1}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)}',
+                f'SF-{int(current_year)}/{int(current_year)}', 'FUTURE SALE AGREEMENT',
+                'NEW OPERATION SALE', 'DIRECT SALES', 'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                'SALE ON ORDER - SHIPMENT', 'SALE PRD' 'EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                'EVENT 2019', 'EVENT 2020', 'EVENT 2021']
+          
+        elif int(current_month) >= 10:
+            cols = ['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                    'SOIL FERTILIZERS', 'SEEDS', f'SF-{int(current_year)-5}/{int(current_year)-5}', 
+                    f'SF-{int(current_year)-5}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-4}', 
+                    f'SF-{int(current_year)-4}/{int(current_year)-3}',f'SF-{int(current_year)-3}/{int(current_year)-3}', 
+                    f'SF-{int(current_year)-3}/{int(current_year)-2}',f'SF-{int(current_year)-2}/{int(current_year)-2}', 
+                    f'SF-{int(current_year)-2}/{int(current_year)-1}',f'SF-{int(current_year)-1}/{int(current_year)-1}', 
+                    f'SF-{int(current_year)-1}/{int(current_year)}',f'SF-{int(current_year)}/{int(current_year)}', 
+                    f'SF-{int(current_year)}/{int(current_year)+1}', 'FUTURE SALE AGREEMENT',
+                    'NEW OPERATION SALE', 'DIRECT SALES', 'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                    'SALE ON ORDER - SHIPMENT', 'SALE PRD' 'EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                    'EVENT 2019', 'EVENT 2020', 'EVENT 2021']
+
+        elif int(current_month) < 4:
+            cols = ['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                    'SOIL FERTILIZERS', 'SEEDS', f'SF-{int(current_year)-6}/{int(current_year)-6}', 
+                    f'SF-{int(current_year)-6}/{int(current_year)-5}', f'SF-{int(current_year)-5}/{int(current_year)-5}', 
+                    f'SF-{int(current_year)-5}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-4}', 
+                    f'SF-{int(current_year)-4}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-3}', 
+                    f'SF-{int(current_year)-3}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-2}', 
+                    f'SF-{int(current_year)-2}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)-1}', 
+                    f'SF-{int(current_year)-1}/{int(current_year)}', 'FUTURE SALE AGREEMENT',
+                    'NEW OPERATION SALE', 'DIRECT SALES', 'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                    'SALE ON ORDER - SHIPMENT', 'SALE PRD' 'EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                    'EVENT 2019', 'EVENT 2020', 'EVENT 2021']
+
+        # creates the columns in case it's not in the dataset 
+        for col in cols:
+            if col not in df_concat.columns:
+                df_concat[col] = 0
+
+        # sum the event columns into one
+        cols_event_description = ['EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                                  'EVENT 2019', 'EVENT 2020', 'EVENT 2021']
+
+        for i in cols_event_description:
+            df_concat.loc[df_concat[f'{i}'] != 0, f'{i}'] = 1
+        df_concat['Event_participation'] = df_concat[cols_event_description][:].sum(axis=1)
+       
+        if 4 <= int(current_month) and int(current_month) < 10:
+            self.df_predict_model = df_concat[['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                'SOIL FERTILIZERS', 'SEEDS', f'SF-{int(current_year)-6}/{int(current_year)-5}',
+                f'SF-{int(current_year)-5}/{int(current_year)-5}',f'SF-{int(current_year)-5}/{int(current_year)-4}',  
+                f'SF-{int(current_year)-4}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-3}',
+                f'SF-{int(current_year)-3}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-2}',
+                f'SF-{int(current_year)-2}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-1}',
+                f'SF-{int(current_year)-1}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)}',
+                f'SF-{int(current_year)}/{int(current_year)}', 'FUTURE SALE AGREEMENT',
+                'NEW OPERATION SALE', 'DIRECT SALES', 'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                'SALE ON ORDER - SHIPMENT', 'SALE PRD' 'EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                'EVENT 2019', 'EVENT 2020', 'EVENT 2021']]
+                                           
+        elif int(current_month) >= 10:
+            self.df_predict_model = df_concat[['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                    'SOIL FERTILIZERS', 'SEEDS', f'SF-{int(current_year)-5}/{int(current_year)-5}', 
+                    f'SF-{int(current_year)-5}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-4}', 
+                    f'SF-{int(current_year)-4}/{int(current_year)-3}',f'SF-{int(current_year)-3}/{int(current_year)-3}', 
+                    f'SF-{int(current_year)-3}/{int(current_year)-2}',f'SF-{int(current_year)-2}/{int(current_year)-2}', 
+                    f'SF-{int(current_year)-2}/{int(current_year)-1}',f'SF-{int(current_year)-1}/{int(current_year)-1}', 
+                    f'SF-{int(current_year)-1}/{int(current_year)}',f'SF-{int(current_year)}/{int(current_year)}', 
+                    f'SF-{int(current_year)}/{int(current_year)+1}', 'FUTURE SALE AGREEMENT',
+                    'NEW OPERATION SALE', 'DIRECT SALES', 'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                    'SALE ON ORDER - SHIPMENT', 'SALE PRD' 'EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                    'EVENT 2019', 'EVENT 2020', 'EVENT 2021']]
+
+        elif int(current_month) < 4:
+            self.df_predict_model = df_concat[['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                    'SOIL FERTILIZERS', 'SEEDS', f'SF-{int(current_year)-6}/{int(current_year)-6}', 
+                    f'SF-{int(current_year)-6}/{int(current_year)-5}', f'SF-{int(current_year)-5}/{int(current_year)-5}', 
+                    f'SF-{int(current_year)-5}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-4}', 
+                    f'SF-{int(current_year)-4}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-3}', 
+                    f'SF-{int(current_year)-3}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-2}', 
+                    f'SF-{int(current_year)-2}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)-1}', 
+                    f'SF-{int(current_year)-1}/{int(current_year)}', 'FUTURE SALE AGREEMENT',
+                    'NEW OPERATION SALE', 'DIRECT SALES', 'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                    'SALE ON ORDER - SHIPMENT', 'SALE PRD' 'EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                    'EVENT 2019', 'EVENT 2020', 'EVENT 2021']]
+
+        return self.df_predict_model
