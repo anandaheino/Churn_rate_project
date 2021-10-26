@@ -43,10 +43,10 @@ class PrepareDataset:
         # %% Split DF by client type, filtering by COMMODITIES and TYPE_HARVEST
         customers_summer = list(
             df[(df['TYPE_HARVEST'] == 'SUMMER') & (df['GROSS_MARGIN'] > 0) & (df['TYPE_BILLING'] == 'COMMODITIES')][
-                'COD_CLIENTE'].unique())
+                'COD_CUSTOMER'].unique())
         customers_winter = list(
-            df[(df['TYPE_HARVEST'] == 'INVERNO') & (df['GROSS_MARGIN'] > 0) & (df['TYPE_BILLING'] == 'COMMODITIES')][
-                'COD_CLIENTE'].unique())
+            df[(df['TYPE_HARVEST'] == 'WINTER') & (df['GROSS_MARGIN'] > 0) & (df['TYPE_BILLING'] == 'COMMODITIES')][
+                'COD_CUSTOMER'].unique())
         customers_fullyear = []
         for v in customers_summer:
             for i in customers_winter:
@@ -64,4 +64,21 @@ class PrepareDataset:
         return self.customers_fullyear, self.customers_winter, self.customers_summer
 
 
+def _create_df_commodities(self):
+        """Receives df and removes irrelevant columns, null data and filters the data according to TYPE_BILLING 
+        equals to commodities, and only positive GROSS_MARGIN values.
+        Returns:
+            df_commodities: DataFrame containing the purchase data of input customers with positive gross margin."""
 
+        df = self.df
+        df = df.fillna(value=0)
+        df.dropna(axis=0, inplace=True)
+       
+        # Filtering data by billing type and positive gross margin
+        df_commodities = df[(df['TYPE_BILLING'] == 'COMODITIES') & (df['GROSS_MARGIN'] > 0)]
+        df_commodities = df_commodities.drop(['TYPE_BILLING'], axis=1)
+        # Reorganizando as colunas
+        self.df_commodities = df_commodities[['COD_CUSTOMER', 'DATE_MOV', 'COD_HARVEST', 'TYPE_HARVEST', 'MIX_GROUP', 'TYPE_CONTRACT',
+                                      'TYPE_MOV', 'REGION', 'AMOUNT', 'VALUE',
+                                      'TRADE', 'EVENT_DESCRIPTION', 'GROSS_MARGIN']]
+        return self.df_commodities
