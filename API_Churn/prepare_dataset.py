@@ -243,7 +243,8 @@ def _create_df_commodities(self):
             checks if the customer stayed at least two harvest without buying with the company.
             It will be considered churn when, after the first purchase, there is more than 2 
             zeros in a row. On the other hand, if the customer with positive churn starts to buy
-            again at the company, than we have positive recurency."""
+            again at the company, than we have positive recurrence.
+            This is a helper method of other methods that are called when instantiating the class."""
 
             df_full['churn'] = 0
             for i in range(len(df_full)):
@@ -266,3 +267,26 @@ def _create_df_commodities(self):
                                     break
                             break
             return df_full
+
+
+    def count_time_off(self, df_full: pd.DataFrame):
+        """Receives a DataFrame classified with churn and recurrence to check the time off. 
+        If recurrence is equal to one (positive), this method counts the total harvests 
+        without purchases between harvests with purchases, including the 2 off from churn.
+        This is a helper method of other methods that are called when instantiating the class."""
+
+        df_full['time_off'] = 0
+        for i in range(len(df_full)):
+            zero = 0
+            if (df_full['recur'][i] == 1):
+                for c in range(len(df_full.values[0]) - 2):  # without churn and recur
+                    if df_full.values[i][c] != 0:
+                        for buy in range(c, c + len(df_full.values[i][c:-3])):
+                            if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0):
+                                zero += 1
+                            if (df_full.values[i][buy] == 0 and df_full.values[i][buy + 1] == 0 and df_full.values[i][
+                                buy + 2] != 0):
+                                break
+                        df_full.iloc[i, -1] = zero + 1
+                        break
+        return df_full
