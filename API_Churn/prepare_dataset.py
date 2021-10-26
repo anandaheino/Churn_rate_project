@@ -292,8 +292,8 @@ def _create_df_commodities(self):
         return df_full
 
 
-    def _add_churn_recorr_timeoff(self):
-        """Classify the data with churn, recurrence, and time_off for each customer type.
+    def _add_churn_recur_timeoff(self):
+        """Classify the data with chursn, recurrence, and time_off for each customer type.
         The winter and summer customers will have considered two winter or two summer harvests (2 years) 
         without purchases to classify a positive churn, while to a fullyear customer will have considered 
         one winter and one summer (1 year) without purchases."""
