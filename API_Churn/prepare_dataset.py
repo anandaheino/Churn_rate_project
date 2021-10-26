@@ -216,8 +216,8 @@ def _create_df_commodities(self):
         df_winter = self.convert_harvest_to_date(df_winter)
         df_winter['DATE_HARVEST'] = pd.to_datetime(df_winter['DATE_HARVEST'])
         df_winter = df_winter.set_index('DATE_HARVEST').drop('COD_HARVEST', axis=1)
-        drop_inverno = df_winter[df_winter.index.month == 1]
-        self.df_winter = df_winter.drop(drop_inverno.index)
+        drop_winter = df_winter[df_winter.index.month == 1]
+        self.df_winter = df_winter.drop(drop_winter.index)
 
         # summer dataframe
         df_summer = self.filter_df_per_customer(customer_summer, df_harvest)
@@ -225,8 +225,8 @@ def _create_df_commodities(self):
         df_summer = self.convert_harvest_to_date(df_summer)
         df_summer['DATE_HARVEST'] = pd.to_datetime(df_summer['DATE_HARVEST'])
         df_summer = df_summer.set_index('DATE_HARVEST').drop('COD_HARVEST', axis=1)
-        drop_verao = df_summer[df_summer.index.month == 7]
-        self.df_summer = df_summer.drop(drop_verao.index)
+        drop_summer = df_summer[df_summer.index.month == 7]
+        self.df_summer = df_summer.drop(drop_summer.index)
 
         # fullyear dataframe
         df_fullyear = self.filter_df_per_customer(customer_fullyear, df_harvest)
@@ -324,3 +324,47 @@ def _create_df_commodities(self):
         self.df_fullyear_churn = self.count_time_off(df_fullyear_churn)
 
         return self.df_summer_churn, self.df_winter_churn, self.df_fullyear_churn
+
+
+    def concat_general_dfs(self, dfs_list):
+        """Receives a list of DataFrames to concatenate.
+        It is mandatory that every DataFrame has a column in common."""
+
+        df_complete = pd.concat(dfs_list)
+        df_complete = df_complete.fillna(0)
+        return df_complete
+
+    
+    def _create_df_churn_complete(self):
+        """It considers the current year and month to choose the last 11 harvests to the model.
+        Between April and September, the winter crop of the current year is considered as the last crop in the churn/recurrence analysis;
+        while after October the last crop is the summer of the following year and between January and march the last crop is the summer of
+        the current year.
+        Returns:
+            df_churn_complete: DataFrame complete with columns of harvests, churn, recurrence, and time_off."""
+
+        current_year = time.strftime('%Y')
+        current_month = time.strftime('%m')
+
+        df_churn_complete = self.concat_general_dfs(
+                [self.df_summer_churn, self.df_winter_churn, self.df_fullyear_churn])
+
+        if 4 <= int(current_month) and int(current_month) < 10:
+            self.df_churn_complete = df_churn_complete[                 
+                [f'{int(current_year)-5}-07-01', f'{int(current_year)-4}-01-01', f'{int(current_year)-4}-07-01', f'{int(current_year)-3}-01-01', 
+                f'{int(current_year)-3}-07-01', f'{int(current_year)-2}-01-01', f'{int(current_year)-2}-07-01', f'{int(current_year)-1}-01-01', 
+                f'{int(current_year)-1}-07-01', f'{int(current_year)}-01-01',f'{int(current_year)}-07-01', 'churn', 'recorr', 'tempo_off']]
+         
+        elif int(current_month) >= 10 :                          
+            self.df_churn_complete = df_churn_complete[
+                [f'{int(current_year)-5}-07-01', f'{int(current_year)-4}-01-01', f'{int(current_year)-4}-07-01', f'{int(current_year)-3}-01-01', f'{int(current_year)-3}-07-01',
+                f'{int(current_year)-2}-01-01', f'{int(current_year)-2}-07-01', f'{int(current_year)-1}-01-01', f'{int(current_year)-1}-07-01', f'{int(current_year)}-01-01',
+                f'{int(current_year)}-07-01', f'{int(current_year)+1}-01-01', 'churn', 'recorr', 'tempo_off']]
+        
+        elif int(current_month) < 4:                                                                 
+            self.df_churn_complete = df_churn_complete[
+                [f'{int(current_year)-6}-07-01', f'{int(current_year)-5}-01-01', f'{int(current_year)-5}-07-01', f'{int(current_year)-4}-01-01', f'{int(current_year)-4}-07-01',
+                f'{int(current_year)-3}-01-01', f'{int(current_year)-3}-07-01', f'{int(current_year)-2}-01-01', f'{int(current_year)-2}-07-01', f'{int(current_year)-1}-01-01',
+                f'{int(current_year)-1}-07-01', f'{int(current_year)}-01-01', 'churn', 'recorr', 'tempo_off']]
+
+        return self.df_churn_complete
