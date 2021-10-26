@@ -80,5 +80,35 @@ def _create_df_commodities(self):
         # Reorganizando as colunas
         self.df_commodities = df_commodities[['COD_CUSTOMER', 'DATE_MOV', 'COD_HARVEST', 'TYPE_HARVEST', 'MIX_GROUP', 'TYPE_CONTRACT',
                                       'TYPE_MOV', 'REGION', 'AMOUNT', 'VALUE',
-                                      'TRADE', 'EVENT_DESCRIPTION', 'GROSS_MARGIN']]
+                                      'TRADE_DESCRIPTION', 'EVENT_DESCRIPTION', 'GROSS_MARGIN']]
         return self.df_commodities
+
+    def _get_dummies_commodities(self):
+        """Receives df_commodities and creates a column for each categorical data (dummies) with a numeric data that represents
+        the data (as string) on a given line.
+        Returns:
+             df_ins_dumm: concatenation of all previously generated dummies
+             dummies_cod_harvest: dummies referring to harvest codes"""
+        df_commodities = self.df_commodities
+        self.dummies_mix = pd.get_dummies(df_commodities['MIX_GROUP']).reset_index()
+        self.dummies_reg = pd.get_dummies(df_commodities['REGION']).reset_index()
+        self.dummies_type_movto = pd.get_dummies(df_commodities['TYPE_MOV']).reset_index()
+        self.dummies_type_cont = pd.get_dummies(df_commodities['TYPE_CONTRACT']).reset_index()
+        self.dummies_type_safra = pd.get_dummies(df_commodities['TYPE_HARVEST']).reset_index()
+        self.dummies_cod_harvest = pd.get_dummies(df_commodities['COD_HARVEST']).reset_index()
+        self.dummies_even_com = pd.get_dummies(df_commodities['EVENT_DESCRIPTION']).reset_index()
+        df_commodities = df_commodities.reset_index()
+
+        dumies_t = [df_commodities, self.dummies_mix, self.dummies_cod_harvest, self.dummies_type_safra,
+                    self.dummies_reg,self.dummies_type_cont, self.dummies_type_movto, self.dummies_even_com]
+                    
+        self.df_ins_dumm = reduce(lambda left, right: pd.merge(left,
+                                                               right,
+                                                               on='index'), dumies_t)
+        try:
+            self.df_ins_dumm.drop(['0_x', '0_y', 0], axis=1, inplace=True)
+        
+        except:
+            self.df_ins_dumm.drop(['0_x','0.0_y'], axis=1, inplace=True)
+
+        return self.df_ins_dumm, self.dummies_cod_harvest
