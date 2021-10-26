@@ -290,3 +290,37 @@ def _create_df_commodities(self):
                         df_full.iloc[i, -1] = zero + 1
                         break
         return df_full
+
+
+    def _add_churn_recorr_timeoff(self):
+        """Classify the data with churn, recurrence, and time_off for each customer type.
+        The winter and summer customers will have considered two winter or two summer harvests (2 years) 
+        without purchases to classify a positive churn, while to a fullyear customer will have considered 
+        one winter and one summer (1 year) without purchases."""
+        
+        # summer
+        df_summer = self.df_summer.reset_index()
+        df_summer['DATA_SAFRA'] = df_summer['DATA_SAFRA'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        df_summer = df_summer.set_index(['DATA_SAFRA'])
+        df_summer.columns.name = None
+        df_summer = df_summer.T
+        df_summer_churn = self.add_churn_recur_values(df_summer)
+        self.df_summer_churn = self.count_time_off(df_summer_churn)
+        # winter
+        df_winter = self.df_winter.reset_index()
+        df_winter['DATA_SAFRA'] = df_winter['DATA_SAFRA'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        df_winter = df_winter.set_index(['DATA_SAFRA'])
+        df_winter.columns.name = None
+        df_winter = df_winter.T
+        df_winter_churn = self.add_churn_recur_values(df_winter)
+        self.df_winter_churn = self.count_time_off(df_winter_churn)
+        # full-year
+        df_fullyear = self.df_fullyear.reset_index()
+        df_fullyear['DATA_SAFRA'] = df_fullyear['DATA_SAFRA'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        df_fullyear = df_fullyear.set_index(['DATA_SAFRA'])
+        df_fullyear.columns.name = None
+        df_fullyear = df_fullyear.T
+        df_fullyear_churn = self.add_churn_recur_values(df_fullyear)
+        self.df_fullyear_churn = self.count_time_off(df_fullyear_churn)
+
+        return self.df_summer_churn, self.df_winter_churn, self.df_fullyear_churn
