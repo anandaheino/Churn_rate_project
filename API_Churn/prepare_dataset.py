@@ -172,3 +172,67 @@ def _create_df_commodities(self):
             df_complete['DATE_HARVEST'] = (df_complete['COD_HARVEST'].map(date_harvest))
 
             return df_complete
+
+    def _split_df_stat_by_customer(self):
+        """Uses the columns of the df_stat_commodities crops according to the current year.
+        The harevsts are updated every six months, that is, the model will always receive updated data.
+        Returns:
+            Summer, winter and full-year DataFrames according to separate lists for each customer profile."""
+        customer_winter, customer_summer, customer_fullyear = self.customer_winter, self.customer_summer, self.customer_fullyear
+
+        current_year = time.strftime('%Y')[-2:]  # year: e.g. 2021 uses only two last numbers "21"
+        current_month = time.strftime('%m')
+           # between april and september
+        if 4 <= int(current_month) and int(current_month) < 10:
+            df_harvest = self.df_stat_commodities[[f'SF-{int(current_year)-6}/{int(current_year)-5}',f'SF-{int(current_year)-5}/{int(current_year)-5}',
+                                            f'SF-{int(current_year)-5}/{int(current_year)-4}',  
+                                            f'SF-{int(current_year)-4}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-3}',
+                                            f'SF-{int(current_year)-3}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-2}',
+                                            f'SF-{int(current_year)-2}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-1}',
+                                            f'SF-{int(current_year)-1}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)}',
+                                            f'SF-{int(current_year)}/{int(current_year)}']]
+                                                                     # last one is the winter harvest from the current year
+          # between october and march
+        if int(current_month) >= 10:
+            df_harvest = self.df_stat_commodities[[f'SF-{int(current_year)-5}/{int(current_year)-5}', f'SF-{int(current_year)-5}/{int(current_year)-4}',  # cod_CLIENTE já é o índice
+                                            f'SF-{int(current_year)-4}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-3}',
+                                            f'SF-{int(current_year)-3}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-2}',
+                                            f'SF-{int(current_year)-2}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-1}',
+                                            f'SF-{int(current_year)-1}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)}',
+                                            f'SF-{int(current_year)}/{int(current_year)}', f'SF-{int(current_year)}/{int(current_year)+1}']]
+                                                                     # last one is the summer harvest of next year
+        if int(current_month) < 4:  
+            df_harvest = self.df_stat_commodities[[f'SF-{int(current_year)-6}/{int(current_year)-6}', f'SF-{int(current_year)-6}/{int(current_year)-5}',  # cod_CLIENTE já é o índice
+                                            f'SF-{int(current_year)-5}/{int(current_year)-5}', f'SF-{int(current_year)-5}/{int(current_year)-4}',
+                                            f'SF-{int(current_year)-4}/{int(current_year)-4}', f'SF-{int(current_year)-4}/{int(current_year)-3}',
+                                            f'SF-{int(current_year)-3}/{int(current_year)-3}', f'SF-{int(current_year)-3}/{int(current_year)-2}',
+                                            f'SF-{int(current_year)-2}/{int(current_year)-2}', f'SF-{int(current_year)-2}/{int(current_year)-1}',
+                                            f'SF-{int(current_year)-1}/{int(current_year)-1}', f'SF-{int(current_year)-1}/{int(current_year)}']]
+                                                                     # last one is the summer harvest of the current year
+        # Winter dataframe
+        df_harvest.reset_index(inplace=True)
+        df_winter = self.filter_df_per_customer(customer_winter, df_harvest)
+        df_winter = df_winter.set_index('COD_CLIENTE').T.reset_index().rename(columns={'index': 'COD_HARVEST'})
+        df_winter = self.convert_harvest_to_date(df_winter)
+        df_winter['DATE_HARVEST'] = pd.to_datetime(df_winter['DATE_HARVEST'])
+        df_winter = df_winter.set_index('DATE_HARVEST').drop('COD_HARVEST', axis=1)
+        drop_inverno = df_winter[df_winter.index.month == 1]
+        self.df_winter = df_winter.drop(drop_inverno.index)
+
+        # summer dataframe
+        df_summer = self.filter_df_per_customer(customer_summer, df_harvest)
+        df_summer = df_summer.set_index('COD_CLIENTE').T.reset_index().rename(columns={'index': 'COD_HARVEST'})
+        df_summer = self.convert_harvest_to_date(df_summer)
+        df_summer['DATE_HARVEST'] = pd.to_datetime(df_summer['DATE_HARVEST'])
+        df_summer = df_summer.set_index('DATE_HARVEST').drop('COD_HARVEST', axis=1)
+        drop_verao = df_summer[df_summer.index.month == 7]
+        self.df_summer = df_summer.drop(drop_verao.index)
+
+        # fullyear dataframe
+        df_fullyear = self.filter_df_per_customer(customer_fullyear, df_harvest)
+        df_fullyear = df_fullyear.set_index('COD_CLIENTE').T.reset_index().rename(columns={'index': 'COD_HARVEST'})
+        df_fullyear = self.convert_harvest_to_date(df_fullyear)
+        df_fullyear['DATE_HARVEST'] = pd.to_datetime(df_fullyear['DATE_HARVEST'])
+        self.df_fullyear = df_fullyear.set_index('DATE_HARVEST').drop('COD_HARVEST', axis=1)
+
+        return self.df_winter, self.df_summer, self.df_fullyear
