@@ -368,3 +368,57 @@ def _create_df_commodities(self):
                 f'{int(current_year)-1}-07-01', f'{int(current_year)}-01-01', 'churn', 'recorr', 'tempo_off']]
 
         return self.df_churn_complete
+
+
+    def _create_df_input_model(self):
+        """Concatenate the df_churn_complete and df_stat_commodities DataFrames transforming the event columns
+        in only one containing the sum of the participations.
+        Depending on the initial model_type parameter 'churn' or 'recur' adjusts the data for input in training
+        of the respective models.
+        Returns:
+            df_input_model: DataFrame"""
+
+        df_churn = self.df_churn_complete[['recur', 'time_off', 'churn']]
+        df_churn.fillna(0, inplace=True)
+
+        df_concat = pd.concat([df_churn, self.df_stat_commodities], axis=1)
+    
+        cols_event_description = ['EVENT 2016', 'EVENT 2017', 'EVENT 2018', 
+                                  'EVENT 2019', 'EVENT 2020', 'EVENT 2021']
+
+        for i in cols_event_description:
+            df_concat.loc[df_concat[f'{i}'] != 0, f'{i}'] = 1
+        df_concat['Event_participation'] = df_concat[cols_event_description][:].sum(axis=1)
+                   
+        # se houver, remove colunas com valores negativos
+        for i in df_concat.columns:
+            try:
+                df_concat[[i]] = pd.to_numeric(df_concat[[i]], errors='ignore', downcast='float')
+                df_concat[[i]].fillna(0)
+            except:
+                pass
+       
+        df_concat = df_concat[df_concat >= 0].fillna(0)
+    
+        if self.model_type == 'churn' :
+
+            self.df_input_model = df_concat[['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                                              'SOIL FERTILIZERS', 'SEEDS', 'SF-16/16', 'SF-16/17', 'SF-17/17',
+                                              'SF-17/18', 'SF-18/18', 'SF-18/19', 'SF-19/19', 'SF-19/20', 'SF-20/20',
+                                              'SF-20/21', 'SF-21/21', 'SF-21/22', 'FUTURE SALE AGREEMENT',
+                                              'NEW OPERATION SALE', 'DIRECT SALES',
+                                              'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                                              'SALE ON ORDER - SHIPMENT', 'SALE PRD',
+                                              'Event_participation', 'churn']]
+        elif self.model_type == 'recorr':
+
+            self.df_input_model = df_concat[['DEFENSIVES', 'SPECIAL FERTILIZERS', 'FOLIARY FERTILIZERS',
+                                              'SOIL FERTILIZERS', 'SEEDS', 'SF-16/16', 'SF-16/17', 'SF-17/17',
+                                              'SF-17/18', 'SF-18/18', 'SF-18/19', 'SF-19/19', 'SF-19/20', 'SF-20/20',
+                                              'SF-20/21', 'SF-21/21', 'SF-21/22', 'FUTURE SALE AGREEMENT',
+                                              'NEW OPERATION SALE', 'DIRECT SALES',
+                                              'FUTURE SALES - SIMPLE BILLING','DIRECT SALES ORDER',
+                                              'SALE ON ORDER - SHIPMENT', 'SALE PRD',
+                                              'Event_participation', 'recorr']]
+
+        return self.df_input_model
